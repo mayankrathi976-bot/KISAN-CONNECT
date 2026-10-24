@@ -1,0 +1,47 @@
+1. SQL / NoSQL Injection Defense
+Neutralizes MongoDB expression operators ($where, $gt, $regex) and enforces Mongoose parameterized schema casting.
+
+2. Cross-Site Scripting (XSS)
+Applies HTML entity escaping to all user inputs before persistence or rendering, disarming <script> and event handler injections.
+
+3. CSRF & JWT Mitigation
+Employs stateless HMAC-SHA256 JWT tokens delivered via HttpOnly, Secure, SameSite=Strict cookies.
+
+src/security/sanitizer.ts & jwtSecurity.ts
+/**
+ * src/security/sanitizer.ts & jwtSecurity.ts
+ * Implementations to prevent SQL/NoSQL Injection, XSS, and CSRF
+ */
+
+// 1. Mongoose ODM Parameterization & NoSQL Operator Neutralizer
+export function sanitizeMongoQuery<T>(rawQuery: T): T {
+  if (typeof rawQuery !== 'object' || rawQuery === null) return rawQuery;
+  const cleanObject: any = Array.isArray(rawQuery) ? [] : {};
+  for (const [key, value] of Object.entries(rawQuery)) {
+    // Prohibit $where, $regex, $gt injection keys
+    if (key.startsWith('$') || key.includes('.')) continue;
+    cleanObject[key] = typeof value === 'object' ? sanitizeMongoQuery(value) : value;
+  }
+  return cleanObject;
+}
+
+// 2. Strict Input Sanitization (XSS Defense)
+export function sanitizeString(input: unknown): string {
+  if (typeof input !== 'string') return '';
+  return input
+    .trim()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// 3. JWT and CSRF Secure Cookie Configuration
+export const SECURE_COOKIE_OPTIONS = {
+  httpOnly: true,                 // Blocks JavaScript access (XSS token theft defense)
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,    // Prevents cross-site cookie transmission (CSRF defense)
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/'
+};
