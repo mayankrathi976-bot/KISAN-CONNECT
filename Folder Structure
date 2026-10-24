@@ -1,0 +1,46 @@
+
+agriprice-connect/
+├── .env.example                     # Environment variables template (Twilio, Mongo, Gemini)
+├── index.html                       # HTML5 entry with Noto Sans Devanagari & Plus Jakarta Sans
+├── package.json                     # Full-stack Node.js + Express + React dependencies
+├── tsconfig.json                    # Strict TypeScript configuration
+├── vite.config.ts                   # Vite bundler & Tailwind CSS v4 setup
+├── server.ts                        # Express API backend, MongoDB adapter, Twilio pipeline
+│
+├── ai_service/                      # Python Open-Weight AI Brain (Llama 3 / Mistral)
+│   ├── rag_engine.py                # LangChain + FAISS RAG, 160-char SMS generator
+│   ├── requirements.txt             # FastAPI, LangChain, FAISS-CPU, SentenceTransformers
+│   └── data/
+│       └── mandi_trends.csv         # 10,000+ historical APMC arrival & modal price records
+│
+├── src/
+│   ├── models/                      # MongoDB NoSQL Schemas (Mongoose ODM)
+│   │   ├── User.ts                  # Farmer/Buyer profiles, language, phone, crops
+│   │   ├── Crop.ts                  # Crop catalog, 30-day price history, MSP, forecasts
+│   │   └── Match.ts                 # Direct farmer-buyer matches, commission saved
+│   │
+│   ├── security/                    # Hardened Vulnerability Defenses
+│   │   ├── sanitizer.ts             # Strict XSS escaping & NoSQL $where/$regex strip
+│   │   └── jwtSecurity.ts           # Stateless HMAC-SHA256 JWT & SameSite=Strict cookies
+│   │
+│   ├── services/                    # Integration & Notification Adapters
+│   │   ├── twilioAlertService.ts    # Twilio REST API for WhatsApp & 160-char SMS
+│   │   └── huggingFaceGemmaService.ts # Google Gemma model inference via Hugging Face API
+│   │
+│   ├── data/                        # Static datasets & bilingual localization
+│   │   ├── cropCatalog.ts           # Mandi price feeds & 30-day time-series
+│   │   ├── buyersCatalog.ts         # Verified direct buyers (FPOs, Millers, Retailers)
+│   │   └── translations.ts          # Comprehensive English & Hindi dictionary
+│   │
+│   ├── components/                  # Accessible, low tech-literacy UI components
+│   │   ├── Header.tsx               # Top Bar Contract with bilingual switch
+│   │   ├── BilingualToggle.tsx      # High-contrast English / हिन्दी switcher
+│   │   ├── MandiForecastDashboard.tsx # Large crop selector, 7-day trend, market drivers
+│   │   ├── IncomeExplainerCard.tsx  # Current -> Forecast -> Net pocket gain breakdown
+│   │   ├── BuyerMatchmaker.tsx      # Direct farmer-to-buyer matching & commission savings
+│   │   ├── NotificationSimulator.tsx # Registration trigger -> AI top price -> Twilio
+│   │   └── ArchitectureHub.tsx      # Interactive framework inspector & code blueprints
+│   │
+│   ├── App.tsx                      # Root component & state management
+│   ├── main.tsx                     # React 19 client bootstrap
+│   └── index.css                    # Tailwind CSS v4 design constitution styles
