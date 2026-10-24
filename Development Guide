@@ -1,0 +1,79 @@
+Step-by-Step Production Deployment Guide
+
+Copy Guide
+
+# Production Deployment Guide for AgriPrice Connect
+
+### Architecture Overview
+1. Frontend & API Gateway: Node.js 20+ Express running Vite SSR / static production bundle.
+2. AI Service: Python 3.11+ FastAPI microservice running Open-Weight RAG engine (Llama 3 / Mistral) with FAISS.
+3. Database: MongoDB Atlas (M10+ Replica Set).
+4. Messaging: Twilio Programmable SMS & WhatsApp Business API.
+
+---
+
+### Step 1: Environment Configuration (.env)
+```bash
+PORT=3000
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://admin:<password>@cluster0.agriprice.mongodb.net/agriprice?retryWrites=true&w=majority
+JWT_SECRET=your-32-byte-cryptographic-secret
+TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+18005550199
+TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+PYTHON_AI_SERVICE_URL=http://localhost:8000
+```
+
+---
+
+### Step 2: Launch the Python Open-Weight AI Microservice
+```bash
+cd ai_service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python rag_engine.py  # Spawns FastAPI on port 8000
+```
+
+---
+
+### Step 3: Build & Start the Node.js / Express Full-Stack Server
+```bash
+npm install
+npm run build
+npm run start         # Runs tsx server.ts on port 3000
+```
+
+---
+
+### Step 4: Docker Multi-Container Compose Setup (docker-compose.yml)
+```yaml
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PYTHON_AI_SERVICE_URL=http://ai:8000
+    depends_on:
+      - ai
+      - mongo
+
+  ai:
+    build:
+      context: .
+      dockerfile: ai_service/Dockerfile
+    ports:
+      - "8000:8000"
+
+  mongo:
+    image: mongo:7.0
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
+```
