@@ -1,0 +1,238 @@
+1. Mongoose Schema: User (Farmers & Buyers)
+const mongoose = require('mongoose');
+
+const UserSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Name is required'],
+    trim: true,
+    maxlength: [80, 'Name cannot exceed 80 characters']
+  },
+  phoneNumber: {
+    type: String,
+    required: [true, 'Phone number is required'],
+    unique: true,
+    match: [/^[+]?[0-9]{10,13}$/, 'Please enter a valid phone number with optional country code']
+  },
+  role: {
+    type: String,
+    enum: ['farmer', 'buyer', 'fpo_admin'],
+    default: 'farmer'
+  },
+  language: {
+    type: String,
+    enum: ['en', 'hi'],
+    default: 'hi'
+  },
+  state: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  district: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  villageOrMandi: {
+    type: String,
+    trim: true
+  },
+  subscribedCrops: [{
+    type: String,
+    trim: true
+  }],
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  businessName: {
+    type: String,
+    trim: true
+  },
+  buyerCategory: {
+    type: String,
+    enum: ['Wholesaler', 'FPO', 'Retail Aggregator', 'Food Processor']
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for fast geo & crop matching without table scans
+UserSchema.index({ district: 1, state: 1 });
+UserSchema.index({ phoneNumber: 1 }, { unique: true });
+UserSchema.index({ role: 1, subscribedCrops: 1 });
+
+module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
+
+2.Mongoose Schema: Crop & 30-Day Historical Trends
+
+const mongoose = require('mongoose');
+
+const PricePointSchema = new mongoose.Schema({
+  date: { type: Date, required: true },
+  minPrice: { type: Number, required: true, min: 0 },
+  maxPrice: { type: Number, required: true, min: 0 },
+  modalPrice: { type: Number, required: true, min: 0 },
+  volumeQuintals: { type: Number, default: 0 },
+  sourceMandi: { type: String, required: true, trim: true }
+}, { _id: false });
+
+const ForecastSchema = new mongoose.Schema({
+  predictedPrice: { type: Number, required: true },
+  timeHorizonDays: { type: Number, default: 7 },
+  confidenceScore: { type: Number, min: 0, max: 1 },
+  expectedGainPerKg: { type: Number },
+  percentageChange: { type: Number },
+  recommendation: {
+    type: String,
+    enum: ['SELL_NOW', 'HOLD_HARVEST', 'PARTIAL_SALE'],
+    default: 'HOLD_HARVEST'
+  },
+  factors: [{ type: String }],
+  lastUpdated: { type: Date, default: Date.now }
+}, { _id: false });
+
+const CropSchema = new mongoose.Schema({
+  nameEn: {
+    type: String,
+    required: true,
+    trim: true,
+    index: true
+  },
+  nameHi: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  category: {
+    type: String,
+    enum: ['Vegetables', 'Grains', 'Pulses', 'Oilseeds', 'Cash Crops'],
+    required: true,
+    index: true
+  },
+  unit: {
+    type: String,
+    enum: ['kg', 'quintal'],
+    default: 'kg'
+  },
+  currentPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  yesterdayPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  msp: {
+    type: Number,
+    min: 0
+  },
+  primaryMandi: {
+    type: String,
+    required: true,
+    index: true
+  },
+  state: {
+    type: String,
+    required: true,
+    index: true
+  },
+  history30Days: [PricePointSchema],
+  forecast: ForecastSchema,
+  iconName: {
+    type: String,
+    default: 'sprout'
+  },
+  qualityGrades: [{
+    type: String
+  }]
+}, {
+  timestamps: true
+});
+
+// Compound index for instant Mandi + Crop lookup
+CropSchema.index({ nameEn: 1, primaryMandi: 1 }, { unique: true });
+
+module.exports = mongoose.models.Crop || mongoose.model('Crop', CropSchema);
+
+3.Mongoose Schema: Match (Direct Elimination of Middlemen)
+const mongoose = require('mongoose');
+
+const MatchSchema = new mongoose.Schema({
+  farmerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  buyerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  cropId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Crop',
+    required: true,
+    index: true
+  },
+  cropName: {
+    type: String,
+    required: true
+  },
+  quantityKg: {
+    type: Number,
+    required: true,
+    min: [1, 'Quantity must be at least 1 kg']
+  },
+  farmerAskingPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  buyerOfferedPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  mandiBenchmarkPrice: {
+    type: Number,
+    required: true
+  },
+  middlemanCommissionSaved: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  distanceKm: {
+    type: Number,
+    default: 0
+  },
+  pickupType: {
+    type: String,
+    enum: ['Farmgate Pickup', 'Mandi Delivery', 'Warehouse Dropoff'],
+    default: 'Farmgate Pickup'
+  },
+  status: {
+    type: String,
+    enum: ['PENDING', 'ACCEPTED', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED'],
+    default: 'PENDING',
+    index: true
+  },
+  paymentTerms: {
+    type: String,
+    enum: ['Immediate UPI / Bank', 'Escrow on Delivery', 'Advance 20% + Balance'],
+    default: 'Immediate UPI / Bank'
+  }
+}, {
+  timestamps: true
+});
+
+MatchSchema.index({ farmerId: 1, status: 1 });
+MatchSchema.index({ buyerId: 1, status: 1 });
+
+module.exports = mongoose.models.Match || mongoose.model('Match', MatchSchema);
